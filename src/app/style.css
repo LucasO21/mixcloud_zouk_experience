@@ -1,0 +1,165 @@
+/* --- General Body & App Styling --- */
+/* --- General Body & App Styling --- */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f2f6; /* Light grey background for the app */
+    color: #333; /* Default text color */
+}
+
+.stApp {
+    /* Add any global app container styles if needed */
+}
+
+/* --- Sidebar Styling --- */
+.stSidebar > div:first-child {
+    background-color: #ffffff; /* White background for sidebar */
+    padding: 15px;
+    border-right: 1px solid #ddd; /* Subtle border */
+}
+
+.stSidebar .stExpander header {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #333;
+}
+
+/* --- Button Styling --- */
+.stButton > button {
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+/* Primary Button (Apply Filters) */
+.stButton > button[kind="primary"] {
+    background-image: linear-gradient(to right, #FF4B4B, #FF9A8B);
+    color: white;
+}
+.stButton > button[kind="primary"]:hover {
+    background-image: linear-gradient(to right, #FF9A8B, #FF4B4B); /* Slightly different gradient on hover */
+    transform: translateY(-2px); /* Subtle lift effect */
+}
+
+/* Secondary Button (Reset Filters) */
+.stButton > button:not([kind="primary"]) {
+    background-color: #6c757d; /* Grey for reset */
+    color: white;
+}
+.stButton > button:not([kind="primary"]):hover {
+    background-color: #5a6268; /* Darker grey on hover */
+    transform: translateY(-2px);
+}
+
+
+/* --- Set Card Styling --- */
+.set-card {
+    background-color: white;
+    border-radius: 8px;
+    border-left: 5px solid #FF4B4B; /* Accent color */
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.set-card:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.set-card .card-header h4 {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.set-card .card-body .tags-section {
+    margin-bottom: 10px;
+}
+
+.set-card .tag {
+    display: inline-block;
+    background-color: #e9ecef; /* Pill-shaped tags background */
+    color: #495057;
+    padding: 3px 8px;
+    border-radius: 12px; /* Pill shape */
+    font-size: 0.8rem;
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+.set-card .stats-section span {
+    display: block; /* Each stat on a new line or inline-block for side-by-side */
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 3px;
+}
+.set-card .stats-section span strong {
+    color: #333;
+}
+
+
+.set-card .card-footer {
+    margin-top: 15px;
+    text-align: right; /* Align button to the right */
+}
+
+.set-card .listen-button {
+    background-image: linear-gradient(to right, #FF4B4B, #FF9A8B);
+    color: white;
+    padding: 8px 15px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transition: background-image 0.3s ease;
+}
+
+.set-card .listen-button:hover {
+    background-image: linear-gradient(to right, #FF9A8B, #FF4B4B);
+}
+
+/* --- Info Box Styling (Sidebar) --- */
+.info-box {
+    background-color: #e1f5fe; /* Light blue background */
+    border: 1px solid #b3e5fc;
+    border-radius: 5px;
+    padding: 10px;
+    margin-top: 15px;
+    font-size: 0.85rem;
+}
+
+.info-box strong {
+    color: #01579b; /* Darker blue for heading */
+    display: block;
+    margin-bottom: 5px;
+}
+
+.info-box ol {
+    padding-left: 20px;
+    margin-bottom: 0;
+}
+.info-box ol li {
+    margin-bottom: 3px;
+}
+
+/* --- Typography & General Elements --- */
+h1, h2, h3, h4, h5, h6 {
+    color: #333; /* Consistent header color */
+}
+
+/* Adjust Streamlit's default markdown styling for better consistency if needed */
+.stMarkdown p {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+/* Ensure expanders look clean */
+.stExpander {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}

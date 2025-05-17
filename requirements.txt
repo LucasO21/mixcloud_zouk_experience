@@ -8,7 +8,7 @@ anyio==4.8.0
 beautifulsoup4==4.12.2
 bertopic==0.16.4
 boto3==1.37.9
-category_encoders==2.7.0
+category_encoders==2.6.4
 chroma-hnswlib==0.7.3
 chromadb==0.5.0
 dash==3.0.2
@@ -59,7 +59,7 @@ opencv-python==4.10.0.84
 pandas==2.1.4
 pillow==10.3.0
 plotly==5.19.0
-polars==0.20.29
+# polars==0.20.29
 pycaret==3.3.2
 pydantic==2.10.6
 pymupdf==1.24.5
@@ -84,4 +84,6 @@ tqdm==4.66.4
 transformers==4.49.0
 umap-learn==0.5.7
 uvicorn==0.29.0
-xgboost==2.0.3
+# xgboost==2.0.3
+ipython==9.2.0
+- e .
