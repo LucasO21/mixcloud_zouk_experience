@@ -1,6 +1,7 @@
 
 # Imports ----
 import pandas as pd
+import os
 
 from langchain.docstore.document import Document
 from langchain_community.vectorstores import Chroma
