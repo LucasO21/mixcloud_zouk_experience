@@ -284,6 +284,11 @@ def display_sets_section(title, sets_df, empty_message="No sets to display in th
         st.info(empty_message)
 
 # --- UI Layout ---
+# Add "back to welcome" button
+if st.button("← Back to Welcome", key="back_from_preference"):
+    st.session_state.active_tab = None
+    st.rerun()
+
 st.title("🎧 Pick Your Preference")
 st.subheader("Discover new music sets based on your preferences.")
 st.markdown("---")
