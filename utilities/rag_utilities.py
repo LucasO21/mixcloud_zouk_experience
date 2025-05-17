@@ -1,12 +1,7 @@
-# ==============================================================================
-# RAG PIPELINE ----
-# ==============================================================================
 
-# ------------------------------------------------------------------------------
-# SETUP ----
-# ------------------------------------------------------------------------------
+# Imports ----
+import pandas as pd
 
-# Import Libraries ----
 from langchain.docstore.document import Document
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -14,49 +9,9 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-import pandas as pd
-import yaml
-from pprint import pprint
-from IPython.display import Markdown
-import os
 
-from pprint import pprint
-from IPython.display import Markdown
-
-# Keys ----
-OPENAI_API_KEY = yaml.safe_load(open("credentials.yml"))['openai']
-
-# Embedding Model ----
-EMBEDDING_MODEL = "text-embedding-ada-002"
-
-# Paths ----
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'dev')
-
-# Load Data ----
-df_djs = pd.read_csv(os.path.join(DATA_DIR, 'dj_info_test.csv')) \
-    .rename(columns = lambda x: x.replace(' ', '_').lower())
-
-df_sets = pd.read_csv(os.path.join(DATA_DIR, 'dj_shows_test.csv'))
-
-
-# ------------------------------------------------------------------------------
-# DATA PREPROCESSING ----
-# ------------------------------------------------------------------------------
-
-# Combine Data ----
-df_combined = pd.merge(
-    df_djs,
-    df_sets,
-    left_on  = 'dj_name',
-    right_on = 'name',
-    how      = 'inner'
-) \
-    .drop(['name', 'show_tags'], axis = 1) \
-    .drop([col for col in df_sets.columns if 'show_info' in col and not col.endswith('combined')], axis=1)
-
-
-# Create Document ----
-def get_rage_document(data):
+# Rag Documents ----
+def get_rag_document(data):
     """
     Create a Document object from a row of the DataFrame.
     """
@@ -90,40 +45,8 @@ def get_rage_document(data):
 
     return documents
 
-documents = create_document(df_combined)
 
-len(documents)
-
-pprint(documents[0].metadata)
-
-
-# ------------------------------------------------------------------------------
-# VECTOR DATABASE ---
-# ------------------------------------------------------------------------------
-
-# Embedding Function ----
-embedding_function_ws = OpenAIEmbeddings(
-    model   = 'text-embedding-ada-002',
-    api_key = OPENAI_API_KEY
-)
-
-# Vector Database ----
-vectorstore = Chroma.from_documents(
-    documents         = documents,
-    embedding         = embedding_function_ws,
-    persist_directory = os.path.join(DATA_DIR, 'chroma_db'),
-    collection_name   = 'dj_sets',
-)
-
-# Retriever ----
-retriever = vectorstore.as_retriever()
-
-retriever
-
-
-# ------------------------------------------------------------------------------
-# RAG LLM MODEL ----
-# ------------------------------------------------------------------------------
+# Rag Model ----
 def get_rag_model(
     vectorstore_path = os.path.join(DATA_DIR, 'chroma_db'),
     model = 'gpt-4o-mini',
@@ -266,12 +189,3 @@ def get_rag_model(
     )
 
     return rag_chain
-
-rag_chain = get_rag_model(
-    openai_api_key = OPENAI_API_KEY,
-)
-
-result = rag_chain.invoke("What is a good set with a groovy low tempo vibe?")
-
-pprint(result)
-Markdown(result)
