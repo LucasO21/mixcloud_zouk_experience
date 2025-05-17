@@ -16,11 +16,16 @@ from langchain.chains import create_history_aware_retriever, create_retrieval_ch
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
 import streamlit as st
+import random
 import yaml
 import uuid
 import os
 import sys
 from pathlib import Path
+
+# Initialize session state for carrying clicked prompt text across rerun
+if "example_prompt_value" not in st.session_state:
+    st.session_state.example_prompt_value = None
 
 # Paths ----
 project_root = Path(__file__).resolve().parent
@@ -36,7 +41,7 @@ RAG_DATABASE = os.path.join(project_root, 'data', 'dev', 'chroma_db')
 # STREAMLIT APP
 # ------------------------------------------------------------------------------
 st.set_page_config(
-    page_title            = "AI Zouk Music Assistant",
+    page_title            = "Your AI Zouk Music Assistant",
     page_icon             = "🎧🤖",
     layout                = "centered"
 )
@@ -44,7 +49,7 @@ st.set_page_config(
 # Message History ----
 msgs = StreamlitChatMessageHistory(key = "langchain_messages")
 if len(msgs.messages) == 0:
-    msgs.add_ai_message("How can I help you?")
+    msgs.add_ai_message(" Hi! 👋 What are you in the mood for today?")
 
 view_messages = st.expander("View the message contents in session state")
 
@@ -98,18 +103,51 @@ def get_rag_chain(
     # -- answer question based on chat history ----
     qa_system_prompt = """
 
-        You are a music recommendation assistant helping users discover DJ sets based on mood and genre.
+        You are a music recommendation assistant helping users discover DJ sets based on their mood, energy, and genre preferences.
+
+        Zouk is a family of dance music genres originating in the Caribbean (notably Guadeloupe and Martinique) and popularized
+        globally through Brazilian and African interpretations.
+
+        There are multiple substyles and fusion genres within Zouk music:
+
+        - Traditional Zouk (Caribbean Zouk): Upbeat, percussion-driven, and rooted in Creole rhythms. Often features live
+        instruments and a carnival feel.
+        - Brazilian Zouk: A slower, smoother evolution adapted for partner dancing. Known for its sensual flow, deep bass, and melodic remixes.
+        - Zouk Lambada: A style blending Brazilian Zouk and Lambada rhythms. Often more dynamic and rhythmically complex.
+        - Ghetto Zouk: A minimal, electronic-influenced version with R&B, Kizomba, or Afrobeat elements. Often more sensual and groove-based.
+        - Zouk Remixes & DJ Edits: Many DJs remix R&B, Lo-fi, Afrobeat, or Pop tracks into Zouk rhythm structures to create fresh dance experiences
+        - Zouk sets can range from slow and intimate to high-energy and festival-style, and may feature crossover genres like Afrobeat,
+          Chillout, Deephouse, Groovy, R&B, EDM, and live blends. Vibe and energy arcs are often as important as genre when selecting a Zouk set.
+
+        Your goal is not just to recommend sets, but to help the user discover what they’re truly in the mood for, even if they aren’t sure yet.
 
         Instructions:
+
+        - If the user’s query is vague or mood-based (e.g. “I want something chill”), start by asking a **clarifying question** before
+        making recommendations. For example:
+            - “Are you interested in chill Zouk specifically, or are you open to R&B or Lo-fi as well?”
+            - “Would you prefer something that builds energy or stays smooth throughout?”
+        - Be sure to give reasons why you are suggesting each set.
+        - Only make recommendations once you feel you have enough clarity on what they’re looking for.
+        - Use a friendly, conversational tone. Make the user feel like they’re chatting with a helpful DJ friend.
         - Answer based only on the context provided below.
         - If multiple sets match, suggest 1–3 and explain why.
         - If no match is found, say so clearly and suggest trying different keywords.
         - Use a friendly and concise tone.
         - Provide the DJ name, title, and a link to the set.
-        - Avoid using the word "I" in your response.
+        - Provide information on the dj.
+        - Avoid using the word “I” to keep the tone professional yet warm.
         - Include brief information about the DJ and the set
+        - When you see the word "Vibe", it's just another word for Genre.
+        - When you see the word "Tempo" is just another word for BPM.
+        - Feel free to summarize or reword descriptions for clarity, but do not invent details.
+        - Do not ask if the user questions like "are you in the mood for Zouk or something else?". All the sets are Zouk. Zouk is just
+          the name of the music and dance but the music incorporates many genres like R&B, Afrobeat, and more.
 
-        See example responses below:
+        - If no matching sets are found:
+            - Say so clearly and suggest trying different keywords or moods.
+
+        See example responses below. Use this output format once you have enough context to make a recommendation:
 
         Example 1:
         It seems like you're looking for a DJ set with a "Chill" vibe. Just to clarify — are you interested
@@ -216,37 +254,100 @@ def get_rag_chain(
 
 rag_chain = get_rag_chain(OPENAI_API_KEY)
 
+# Add Title
+# Add "back to welcome" button
+if st.button("← Back to Welcome", key="back_from_preference"):
+    st.session_state.active_tab = None
+    st.rerun()
+
+st.title("🎧🤖 AI Zouk Music Assistant")
+st.write("---")
+
+# Example Prompts
+# st.subheader("Try an Example Prompt")
+st.info("Click any button below to try an example prompt. You can also type your own question in the chat box.")
+# prompt1_text = "Find me some chill Zouk sets for a relaxed evening."
+# prompt2_text = "Recommend upbeat Zouk tracks with Afrobeat influences."
+# prompt3_text = "What are some popular Zouk sets from recent festivals?"
+
+# cols = st.columns(3)
+# if cols[0].button(prompt1_text, key="prompt1_btn", use_container_width=True):
+#     st.session_state.example_prompt_value = prompt1_text
+#     st.rerun()
+# if cols[1].button(prompt2_text, key="prompt2_btn", use_container_width=True):
+#     st.session_state.example_prompt_value = prompt2_text
+#     st.rerun()
+# if cols[2].button(prompt3_text, key="prompt3_btn", use_container_width=True):
+#     st.session_state.example_prompt_value = prompt3_text
+#     st.rerun()
+# st.markdown("---") # Separator
+# --- All available prompts ---
+all_prompts = [
+    "Find me some chill Zouk sets for a relaxed evening.",
+    "Recommend upbeat Zouk tracks with Afrobeat influences.",
+    "What are some popular Zouk sets from recent festivals?",
+    "I’m in the mood for slow, emotional Zouk remixes. Got any suggestions?",
+    "Show me some DJ sets that blend R&B and Brazilian Zouk.",
+    "Looking for high-energy sets to open a party. Any recommendations?",
+    "Suggest Zouk sets with live instruments or world music elements.",
+    "Find DJ sets with strong energy arcs, building from slow to high BPM.",
+    "Which sets are great for partner dancing on a Sunday night?"
+]
+
+# --- Pick 3 random prompts on load ---
+if "prompt_choices" not in st.session_state:
+    st.session_state.prompt_choices = random.sample(all_prompts, 3)
+
+# --- Display buttons ---
+cols = st.columns(3)
+for i, prompt_text in enumerate(st.session_state.prompt_choices):
+    if cols[i].button(prompt_text, key=f"prompt_btn_{i}", use_container_width=True):
+        st.session_state.example_prompt_value = prompt_text
+        st.rerun()
+
 # Render Current Messages From StreamlitChatMessageHistory
 for msg in msgs.messages:
     st.chat_message(msg.type).write(msg.content)
 
-if question := st.chat_input("Enter your automation question here:", key="query_input"):
+# Determine the query to process
+query_to_process = None
+
+if st.session_state.get("example_prompt_value"): # Check if a button was clicked
+    query_to_process = st.session_state.example_prompt_value
+    st.session_state.example_prompt_value = None  # Consume the value, so it's not reused on next rerun without new click
+
+# Then, check the actual chat input field
+# Changed placeholder text for chat_input to be more specific
+chat_input_val = st.chat_input("Ask about Zouk music recommendations...", key="query_input")
+if chat_input_val:
+    query_to_process = chat_input_val # chat_input takes precedence if user types after clicking example
+
+# If there's a query from either source, process it
+if query_to_process:
+    st.chat_message("human").write(query_to_process)
+    # Note: The RAG chain with RunnableWithMessageHistory is expected to handle
+    # adding the human message to the history (msgs).
+
     with st.spinner("Thinking..."):
-        st.chat_message("human").write(question)
-
         response = rag_chain.invoke(
-            {"input": question},
-            config={
-                "configurable": {"session_id": "any"}
-            },
+            {"input": query_to_process},
+            config={"configurable": {"session_id": "any"}}, # session_id="any" is from original code
         )
-        # Debug response
-        # print(response)
-        # print("\n")
-
+        # The AI response is also expected to be added to history by the chain.
+        # Explicitly writing it to the chat UI is consistent with original code.
         st.chat_message("ai").write(response['answer'])
 
 # View Messages for Debugging ----
 # Draw the messages at the end, so newly generated ones show up immediately
-with view_messages:
-    """
-    Message History initialized with:
-    ```python
-    msgs = StreamlitChatMessageHistory(key="langchain_messages")
-    ```
+# with view_messages:
+#     """
+#     Message History initialized with:
+#     ```python
+#     msgs = StreamlitChatMessageHistory(key="langchain_messages")
+#     ```
 
-    Contents of `st.session_state.langchain_messages`:
-    """
-    view_messages.json(st.session_state.langchain_messages)
+#     Contents of `st.session_state.langchain_messages`:
+#     """
+#     view_messages.json(st.session_state.langchain_messages)
 
 
