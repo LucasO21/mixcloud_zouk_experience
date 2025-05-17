@@ -1,5 +1,5 @@
 # ==============================================================================
-# RAG PIPELINE ----
+# STREAMLIT TAB 2 - AI RECOMMENDATIONS ----
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -7,129 +7,54 @@
 # ------------------------------------------------------------------------------
 
 # Import Libraries ----
-from langchain.docstore.document import Document
 from langchain_community.vectorstores import Chroma
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 
-import pandas as pd
+import streamlit as st
 import yaml
-from pprint import pprint
-from IPython.display import Markdown
+import uuid
 import os
-
-from pprint import pprint
-from IPython.display import Markdown
-
-# Keys ----
-OPENAI_API_KEY = yaml.safe_load(open("credentials.yml"))['openai']
-
-# Embedding Model ----
-EMBEDDING_MODEL = "text-embedding-ada-002"
+import sys
+from pathlib import Path
 
 # Paths ----
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data', 'dev')
+project_root = Path(__file__).resolve().parent
+sys.path.append(str(project_root))
 
-# Load Data ----
-df_djs = pd.read_csv(os.path.join(DATA_DIR, 'dj_info_test.csv')) \
-    .rename(columns = lambda x: x.replace(' ', '_').lower())
+# from utilities.rag_utilities import get_rag_model
 
-df_sets = pd.read_csv(os.path.join(DATA_DIR, 'dj_shows_test.csv'))
-
-
-# ------------------------------------------------------------------------------
-# DATA PREPROCESSING ----
-# ------------------------------------------------------------------------------
-
-# Combine Data ----
-df_combined = pd.merge(
-    df_djs,
-    df_sets,
-    left_on  = 'dj_name',
-    right_on = 'name',
-    how      = 'inner'
-) \
-    .drop(['name', 'show_tags'], axis = 1) \
-    .drop([col for col in df_sets.columns if 'show_info' in col and not col.endswith('combined')], axis=1)
-
-
-# Create Document ----
-def get_rage_document(data):
-    """
-    Create a Document object from a row of the DataFrame.
-    """
-    sets_dict = data.to_dict(orient = 'records')
-
-    documents = []
-
-    for item in sets_dict:
-        content = f"""
-        dj_name: {item.get('dj_name')},
-        dj_bio: {item.get('dj_info')},
-        df_followers: {item.get('dj_followers')},
-        df_following: {item.get('dj_following')},
-        title: {item.get('show_title')},
-        play_count: {item.get('play_count')},
-        favorited_count: {item.get('fav_count')},
-        date_uploaded: {item.get('date_uploaded')},
-        genre_tags: {item.get('show_tags_cleaned')},
-        energy_min: {item.get('energy_min')},
-        energy_max: {item.get('energy_max')},
-        bpm_min: {item.get('bpm_min')},
-        bpm_max: {item.get('bpm_max')},
-        artists_list: {item.get('artists_list')},
-        show_info_combined: {item.get('show_info_combined')},
-        show_url: {item.get('show_url')},
-        """
-
-        doc = Document(page_content = content, metadata = item)
-
-        documents.append(doc)
-
-    return documents
-
-documents = create_document(df_combined)
-
-len(documents)
-
-pprint(documents[0].metadata)
-
+# Env Variables ----
+OPENAI_API_KEY = yaml.safe_load(open("credentials.yml"))['openai']
+RAG_DATABASE = os.path.join(project_root, 'data', 'dev', 'chroma_db')
 
 # ------------------------------------------------------------------------------
-# VECTOR DATABASE ---
+# STREAMLIT APP
 # ------------------------------------------------------------------------------
-
-# Embedding Function ----
-embedding_function_ws = OpenAIEmbeddings(
-    model   = 'text-embedding-ada-002',
-    api_key = OPENAI_API_KEY
+st.set_page_config(
+    page_title            = "AI Zouk Music Assistant",
+    page_icon             = "🎧🤖",
+    layout                = "centered"
 )
 
-# Vector Database ----
-vectorstore = Chroma.from_documents(
-    documents         = documents,
-    embedding         = embedding_function_ws,
-    persist_directory = os.path.join(DATA_DIR, 'chroma_db'),
-    collection_name   = 'dj_sets',
-)
+# Message History ----
+msgs = StreamlitChatMessageHistory(key = "langchain_messages")
+if len(msgs.messages) == 0:
+    msgs.add_ai_message("How can I help you?")
 
-# Retriever ----
-retriever = vectorstore.as_retriever()
-
-retriever
+view_messages = st.expander("View the message contents in session state")
 
 
-# ------------------------------------------------------------------------------
-# RAG LLM MODEL ----
-# ------------------------------------------------------------------------------
-def get_rag_model(
-    vectorstore_path = os.path.join(DATA_DIR, 'chroma_db'),
-    model = 'gpt-4o-mini',
-    temperature = 0,
-    openai_api_key = None,
-    # documents = None,
+def get_rag_chain(
+    vectorstore_path = RAG_DATABASE,
+    model            = 'gpt-4o-mini',
+    temperature      = 0.7,
+    openai_api_key   = OPENAI_API_KEY,
+
 ):
 
     # - embedding ----
@@ -147,10 +72,31 @@ def get_rag_model(
     #  - retriever ----
     retriever = vectorstore.as_retriever()
 
+    # - llm ----
+    llm = ChatOpenAI(
+        model       = model,
+        temperature = temperature,
+        api_key     = openai_api_key,
+    )
+
     # - rag chain ----
 
-    # -- template ----
-    template = """
+    # - contextualize question ----
+    contextualize_q_system_prompt = """Given a chat history and the latest user question \
+    which might reference context in the chat history, formulate a standalone question \
+    which can be understood without the chat history. Do NOT answer the question, \
+    just reformulate it if needed and otherwise return it as is."""
+
+    contextualize_q_prompt = ChatPromptTemplate.from_messages([
+        ("system", contextualize_q_system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ])
+
+    history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
+
+    # -- answer question based on chat history ----
+    qa_system_prompt = """
 
         You are a music recommendation assistant helping users discover DJ sets based on mood and genre.
 
@@ -246,34 +192,61 @@ def get_rag_model(
         emotional range, often moving between groove, softness, and surprise peaks. His mixes are particularly
         great for dancers who appreciate intention behind musical storytelling — and yes, the vibes are indeed immaculate.
 
-
         {context}
-
-        Question: {question}
     """
 
-    prompt = ChatPromptTemplate.from_template(template)
+    qa_prompt = ChatPromptTemplate.from_messages([
+        ("system", qa_system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}")
+    ])
 
-    model = ChatOpenAI(
-        model       = model,
-        temperature = temperature,
-        api_key     = openai_api_key,
+    question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
+
+    # - combine both RAG + chat message history
+    rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+
+    return RunnableWithMessageHistory(
+        rag_chain,
+        lambda session_id: msgs,
+        input_messages_key   = "input",
+        history_messages_key = "chat_history",
+        output_messages_key  = "answer",
     )
 
-    rag_chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
-        | prompt
-        | model
-        | StrOutputParser()
-    )
+rag_chain = get_rag_chain(OPENAI_API_KEY)
 
-    return rag_chain
+# Render Current Messages From StreamlitChatMessageHistory
+for msg in msgs.messages:
+    st.chat_message(msg.type).write(msg.content)
 
-rag_chain = get_rag_model(
-    openai_api_key = OPENAI_API_KEY,
-)
+if question := st.chat_input("Enter your automation question here:", key="query_input"):
+    with st.spinner("Thinking..."):
+        st.chat_message("human").write(question)
 
-result = rag_chain.invoke("What is a good set with a groovy low tempo vibe?")
+        response = rag_chain.invoke(
+            {"input": question},
+            config={
+                "configurable": {"session_id": "any"}
+            },
+        )
+        # Debug response
+        # print(response)
+        # print("\n")
 
-pprint(result)
-Markdown(result)
+        st.chat_message("ai").write(response['answer'])
+
+# View Messages for Debugging ----
+# Draw the messages at the end, so newly generated ones show up immediately
+with view_messages:
+    """
+    Message History initialized with:
+    ```python
+    msgs = StreamlitChatMessageHistory(key="langchain_messages")
+    ```
+
+    Contents of `st.session_state.langchain_messages`:
+    """
+    view_messages.json(st.session_state.langchain_messages)
+
+
